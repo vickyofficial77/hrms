@@ -85,15 +85,61 @@ router.post("/login", (req, res) => {
     }
 
     req.session.user = {
-  UserID: user.UserID,
-  EmpID: user.EmpID,
-  UserName: user.UserName,
-};
+      UserID: user.UserID,
+      EmpID: user.EmpID,
+      UserName: user.UserName,
+    };
 
-res.json({
-  message: "Login successful",
-  user: req.session.user,
-   });
+    res.json({
+      message: "Login successful",
+      user: req.session.user,
+    });
+  });
+});
+
+/* RECOVER PASSWORD */
+router.put("/recover-password", async (req, res) => {
+  const { EmpID, UserName, Password } = req.body;
+
+  if (!EmpID || !UserName || !Password) {
+    return res.status(400).json({
+      message: "Employee ID, username, and new password are required",
+    });
+  }
+
+  const checkSql = "SELECT * FROM Users WHERE EmpID = ? AND UserName = ?";
+
+  db.query(checkSql, [EmpID, UserName], async (err, results) => {
+    if (err) {
+      console.log("RECOVER CHECK ERROR:", err);
+      return res.status(500).json({
+        message: "Server error",
+      });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({
+        message: "Employee ID and username do not match any account",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(Password, 10);
+
+    const updateSql =
+      "UPDATE Users SET Password = ? WHERE EmpID = ? AND UserName = ?";
+
+    db.query(updateSql, [hashedPassword, EmpID, UserName], (updateErr) => {
+      if (updateErr) {
+        console.log("RECOVER UPDATE ERROR:", updateErr);
+        return res.status(500).json({
+          message: "Failed to reset password",
+        });
+      }
+
+      res.json({
+        message: "Password reset successfully. You can now login.",
+      });
+    });
   });
 });
 

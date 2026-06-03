@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Rocket, User, Lock, IdCard } from "lucide-react";
+import { Rocket, User, Lock, IdCard, X } from "lucide-react";
 import { toast } from "react-toastify";
 import api from "../api/axios";
 
 function Login() {
   const navigate = useNavigate();
   const [isRegister, setIsRegister] = useState(false);
+  const [showRecover, setShowRecover] = useState(false);
 
   const [loginForm, setLoginForm] = useState({
     UserName: "",
@@ -20,26 +21,32 @@ function Login() {
     ConfirmPassword: "",
   });
 
+  const [recoverForm, setRecoverForm] = useState({
+    EmpID: "",
+    UserName: "",
+    Password: "",
+    ConfirmPassword: "",
+  });
+
   const handleLogin = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  try {
-    const res = await api.post("/auth/login", loginForm);
+    if (!loginForm.UserName || !loginForm.Password) {
+      toast.error("Please fill all login fields");
+      return;
+    }
 
-    localStorage.setItem(
-      "user",
-      JSON.stringify(res.data.user)
-    );
+    try {
+      const res = await api.post("/auth/login", loginForm);
 
-    toast.success("Login successful");
+      localStorage.setItem("user", JSON.stringify(res.data.user));
 
-    navigate("/dashboard");
-  } catch (error) {
-    toast.error(
-      error.response?.data?.message || "Login failed"
-    );
-  }
-};
+      toast.success("Login successful");
+      navigate("/dashboard");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Login failed");
+    }
+  };
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -78,6 +85,47 @@ function Login() {
       setIsRegister(false);
     } catch (error) {
       toast.error(error.response?.data?.message || "Registration failed");
+    }
+  };
+
+  const handleRecoverPassword = async (e) => {
+    e.preventDefault();
+
+    if (
+      !recoverForm.EmpID ||
+      !recoverForm.UserName ||
+      !recoverForm.Password ||
+      !recoverForm.ConfirmPassword
+    ) {
+      toast.error("Please fill all recovery fields");
+      return;
+    }
+
+    if (recoverForm.Password !== recoverForm.ConfirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+
+    try {
+      await api.put("/auth/recover-password", {
+        EmpID: recoverForm.EmpID,
+        UserName: recoverForm.UserName,
+        Password: recoverForm.Password,
+      });
+
+      toast.success("Password reset successfully");
+
+      setRecoverForm({
+        EmpID: "",
+        UserName: "",
+        Password: "",
+        ConfirmPassword: "",
+      });
+
+      setShowRecover(false);
+      setIsRegister(false);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Password recovery failed");
     }
   };
 
@@ -263,6 +311,14 @@ function Login() {
                     Sign In
                   </button>
 
+                  <button
+                    type="button"
+                    onClick={() => setShowRecover(true)}
+                    className="block w-full text-center text-sm font-bold text-blue-700 transition hover:text-cyan-500"
+                  >
+                    Forgot Password?
+                  </button>
+
                   <p className="text-center text-xs text-slate-500">
                     Do not have an account?{" "}
                     <button
@@ -279,6 +335,99 @@ function Login() {
           </div>
         </div>
       </div>
+
+      {showRecover && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 px-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-md rounded-[2rem] bg-white p-7 shadow-2xl">
+            <button
+              type="button"
+              onClick={() => setShowRecover(false)}
+              className="absolute right-5 top-5 rounded-xl bg-slate-100 p-2 text-slate-500 transition hover:bg-red-100 hover:text-red-600"
+            >
+              <X size={18} />
+            </button>
+
+            <h2 className="text-2xl font-black text-slate-900">
+              Recover Password
+            </h2>
+
+            <p className="mt-2 text-sm text-slate-500">
+              Enter your Employee ID and username to create a new password.
+            </p>
+
+            <form onSubmit={handleRecoverPassword} className="mt-6 space-y-4">
+              <Input
+                icon={<IdCard size={18} />}
+                label="Employee ID"
+                placeholder="Example: EMP001"
+                value={recoverForm.EmpID}
+                onChange={(e) =>
+                  setRecoverForm({
+                    ...recoverForm,
+                    EmpID: e.target.value,
+                  })
+                }
+              />
+
+              <Input
+                icon={<User size={18} />}
+                label="Username"
+                placeholder="Enter username"
+                value={recoverForm.UserName}
+                onChange={(e) =>
+                  setRecoverForm({
+                    ...recoverForm,
+                    UserName: e.target.value,
+                  })
+                }
+              />
+
+              <Input
+                icon={<Lock size={18} />}
+                label="New Password"
+                type="password"
+                placeholder="Enter new password"
+                value={recoverForm.Password}
+                onChange={(e) =>
+                  setRecoverForm({
+                    ...recoverForm,
+                    Password: e.target.value,
+                  })
+                }
+              />
+
+              <Input
+                icon={<Lock size={18} />}
+                label="Confirm Password"
+                type="password"
+                placeholder="Confirm new password"
+                value={recoverForm.ConfirmPassword}
+                onChange={(e) =>
+                  setRecoverForm({
+                    ...recoverForm,
+                    ConfirmPassword: e.target.value,
+                  })
+                }
+              />
+
+              <button
+                type="submit"
+                className="w-full rounded-2xl bg-gradient-to-r from-blue-700 to-cyan-500 py-3.5 text-sm font-black text-white shadow-xl shadow-blue-500/40 transition hover:scale-105 hover:from-cyan-500 hover:to-blue-700"
+              >
+                Reset Password
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowRecover(false)}
+                className="w-full rounded-2xl border border-slate-200 py-3 text-sm font-black text-slate-600 transition hover:bg-slate-100"
+              >
+                Cancel
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
